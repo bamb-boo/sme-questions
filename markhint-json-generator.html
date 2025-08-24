@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markhint JSON Generator</title>
+<style>
+    body { font-family: Arial; padding: 20px; }
+    input, select, button { margin: 5px 0; }
+    textarea { width: 100%; height: 300px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Markhint JSON Generator</h1>
+
+<label>API Key:</label><br>
+<input type="text" id="apikey" value="YOUR_API_KEY"><br>
+
+<label>Board:</label><br>
+<input type="text" id="board" value="IGCSE"><br>
+
+<label>Subject Code:</label><br>
+<input type="text" id="subject" value="0580"><br>
+
+<label>Paper Number(s) (comma separated):</label><br>
+<input type="text" id="paper" value="4"><br>
+
+<label>Years (comma separated):</label><br>
+<input type="text" id="years" value="2022,2023"><br>
+
+<label>Variants (comma separated):</label><br>
+<input type="text" id="variants" value="1,2,3"><br>
+
+<label>Seasons (comma separated):</label><br>
+<input type="text" id="seasons" value="Oct/Nov,May/June"><br>
+
+<label>Hardness:</label><br>
+<input type="number" id="hardness" value="3"><br>
+
+<label>Starting ID:</label><br>
+<input type="number" id="startid" value="1"><br>
+
+<button onclick="generateJSON()">Generate JSON</button>
+
+<textarea id="output" placeholder="Output JSON will appear here..."></textarea>
+
+<script>
+async function generateJSON() {
+    const apiKey = document.getElementById("apikey").value;
+    const board = document.getElementById("board").value;
+    const subject = document.getElementById("subject").value;
+    const paperNumbers = document.getElementById("paper").value.split(',').map(p => p.trim());
+    const years = document.getElementById("years").value.split(',').map(y => y.trim());
+    const variants = document.getElementById("variants").value.split(',').map(v => v.trim());
+    const seasons = document.getElementById("seasons").value.split(',').map(s => s.trim());
+    const hardness = document.getElementById("hardness").value;
+    const startId = parseInt(document.getElementById("startid").value) || 1;
+
+    const paperStr = encodeURIComponent(`in.(${paperNumbers.join(',')})`);
+    const yearStr = encodeURIComponent(`in.(${years.join(',')})`);
+    const variantStr = encodeURIComponent(`in.(${variants.join(',')})`);
+    const seasonStr = encodeURIComponent(`in.(${seasons.join(',')})`);
+
+    const url = `https://qnpumhfafqmcymbxzuvc.supabase.co/rest/v1/questions?select=*&board=eq.${board}&subject=eq.${subject}&paper_number=${paperStr}&year=${yearStr}&variant=${variantStr}&season=${seasonStr}&difficulty=eq.${hardness}`;
+
+    try {
+        const res = await fetch(url, {
+            method: "GET",
+            headers: {
+                "apikey": apiKey,
+                "Authorization": `Bearer ${apiKey}`
+            }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        // Generate JSON objects as separate {} with commas
+        const output = data.map((q, i) => {
+            const images = q.images || [];
+            const marking_scheme = images.map(img => img.replace('_q_', '_a_'));
+            return JSON.stringify({
+                id: startId + i,
+                hardness: q.difficulty || hardness,
+                marks: q.marks || 0,
+                images,
+                marking_scheme
+            }, null, 4) + ','; // add comma after each object
+        }).join('\n'); // separate each object with a newline
+
+        document.getElementById("output").value = output;
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("output").value = "Error fetching data! Check console for details.";
+    }
+}
+</script>
+
+</body>
+</html>
