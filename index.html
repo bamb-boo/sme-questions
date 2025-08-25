@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IGCSE Question-Maker</title>
+<title>IGCSE Question-Thing</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="container">
-    <h1>IGCSE Question-Maker</h1>
+    <h1>IGCSE Question-Thing</h1>
 
     <!-- Subject Selector -->
     <div class="input-group">
@@ -24,11 +24,11 @@
     <!-- Form -->
     <form id="question-form" onsubmit="calculate(event)">
         <div class="input-group">
-            <label for="user_marks">Marks Scored:</label>
+            <label for="user_marks">How many marks did you get? </label>
             <input type="number" id="user_marks" name="user_marks" min="0" required>
         </div>
         <div class="input-group">
-            <label for="total_marks">Total Marks:</label>
+            <label for="total_marks">Total marks of question: </label>
             <input type="number" id="total_marks" name="total_marks" min="1" required>
         </div>
         <button type="submit" class="btn">Submit</button>
@@ -173,3 +173,4 @@ document.getElementById("subject").addEventListener("change", (e) => {
 </script>
 </body>
 </html>
+
