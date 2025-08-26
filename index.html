@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IGCSE Question-Thing</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>IGCSE Question-Thing</h1>
+
+    <!-- Subject Selector -->
+    <div class="input-group">
+        <label for="subject">Select Subject:</label>
+        <select id="subject" name="subject" required>
+            <option value="" disabled selected>Choose Subject</option>
+            <option value="math">Math</option>
+            <option value="physics">Physics</option>
+            <option value="chemistry">Chemistry</option>
+        </select>
+    </div>
+
+    <!-- Form -->
+    <form id="question-form" onsubmit="calculate(event)">
+        <div class="input-group">
+            <label for="user_marks">How many marks did you get? </label>
+            <input type="number" id="user_marks" name="user_marks" min="0" required>
+        </div>
+        <div class="input-group">
+            <label for="total_marks">Total marks of question: </label>
+            <input type="number" id="total_marks" name="total_marks" min="1" required>
+        </div>
+        <button type="submit" class="btn">Submit</button>
+    </form>
+
+    <div id="demo" class="result-box"></div>
+    <div id="question-container" class="question-box"></div>
+    <div id="marking-scheme-container" class="marking-box" style="display: none; margin-top: 10px;"></div>
+</div>
+
+<script>
+let allData = [];
+let currentQuestion = null;
+let currentSubject = null;
+const shownQuestions = {};
+
+// Load questions based on selected subject
+async function loadQuestionsBySubject(subject) {
+    try {
+        currentSubject = subject;
+        const response = await fetch(`${subject}_questions.json`); // different JSON for each subject
+        allData = await response.json();
+
+        if (allData.length === 0) {
+            document.getElementById("question-container").innerHTML = `<p class="error">⚠ No questions found for ${subject}!</p>`;
+            return;
+        }
+
+        // Reset previously shown questions for this subject
+        shownQuestions[subject] = {};
+
+        // Start with the hardest question for the subject
+        const maxHardness = Math.max(...allData.map(q => q.hardness));
+        currentQuestion = allData.find(q => q.hardness === maxHardness);
+
+        renderQuestion(currentQuestion);
+    } catch (error) {
+        console.error("Error loading questions:", error);
+        document.getElementById("question-container").innerHTML = `<p class="error">⚠ Error loading ${subject} questions</p>`;
+    }
+}
+
+function renderQuestion(question) {
+    const questionContainer = document.getElementById("question-container");
+    const markingSchemeContainer = document.getElementById("marking-scheme-container");
+
+    questionContainer.innerHTML = `
+        <h3>Question ID: ${question.id}</h3>
+        ${question.images.map(img => `<img src="${img}" alt="Question" class="question-img">`).join("")}
+    `;
+
+    markingSchemeContainer.style.display = "block";
+    markingSchemeContainer.innerHTML = `
+        <button id="marking-scheme-btn" class="btn">View Marking Scheme</button>
+        <div id="marking-scheme-img" style="display:none; margin-top: 10px;">
+            ${question.marking_scheme.map(img => `<img src="${img}" alt="Marking Scheme" class="question-img">`).join("")}
+        </div>
+    `;
+
+    const btn = document.getElementById("marking-scheme-btn");
+    const schemeImg = document.getElementById("marking-scheme-img");
+    btn.onclick = () => {
+        schemeImg.style.display = schemeImg.style.display === "none" ? "block" : "none";
+    };
+}
+
+async function calculate(event) {
+    event.preventDefault();
+    const user_marks = Number(document.getElementById("user_marks").value);
+    const totalMarks = Number(document.getElementById("total_marks").value);
+
+    if (!currentQuestion) {
+        document.getElementById("demo").innerHTML = `<p class="error">⚠ Please select a subject first!</p>`;
+        return;
+    }
+
+    const demoBox = document.getElementById("demo");
+    const questionContainer = document.getElementById("question-container");
+    const markingSchemeContainer = document.getElementById("marking-scheme-container");
+
+    if (user_marks > totalMarks) {
+        demoBox.innerHTML = `<p class="error">⚠ Marks scored cannot exceed total marks (${totalMarks})!</p>`;
+        return;
+    }
+
+    try {
+        const hardness = currentQuestion.hardness;
+        let increase_threshold = Math.max(1, Math.round(totalMarks * 0.15));
+        let same_threshold = Math.max(1, Math.round(totalMarks * 0.30));
+        let recommended_hardness;
+
+        if (user_marks >= totalMarks - increase_threshold) {
+            let performance_boost = (user_marks - (totalMarks - increase_threshold)) / totalMarks;
+            recommended_hardness = hardness + 1 + performance_boost * 2;
+        } else if (user_marks >= totalMarks - same_threshold) {
+            recommended_hardness = hardness;
+        } else {
+            let performance_ratio = user_marks / totalMarks;
+            recommended_hardness = hardness * (0.5 + 0.5 * performance_ratio);
+        }
+
+        let marks_weight = Math.log2(totalMarks + 1) / 3;
+        recommended_hardness *= marks_weight;
+        recommended_hardness = Math.round(Math.max(1, Math.min(4, recommended_hardness)));
+
+        demoBox.innerHTML = `<p>Recommended Hardness: <b>${recommended_hardness}</b></p>`;
+        const questionsByHardness = allData.filter(q => 
+        q.hardness === recommended_hardness && q.id !== currentQuestion.id
+    );
+
+        if (questionsByHardness.length === 0) {
+            questionContainer.innerHTML = `<p class="error">⚠ No question found for hardness level ${recommended_hardness}</p>`;
+            markingSchemeContainer.style.display = "none";
+            return;
+        }
+
+        if (!shownQuestions[currentSubject]) shownQuestions[currentSubject] = {};
+        if (!shownQuestions[currentSubject][recommended_hardness]) shownQuestions[currentSubject][recommended_hardness] = [];
+        const nextQuestion = questionsByHardness.find(q => !shownQuestions[currentSubject][recommended_hardness].includes(q.id));
+if (!nextQuestion) {
+    const allRecommended = allData.filter(q => q.hardness === recommended_hardness);
+    const shownIds = shownQuestions[currentSubject][recommended_hardness];
+
+    if (shownIds.length >= allRecommended.length) {
+        questionContainer.innerHTML = `<p class="error">⚠ All questions for hardness ${recommended_hardness} have been shown for ${currentSubject}. Please try another level or reset.</p>`;
+        markingSchemeContainer.style.display = "none";
+        return;
+    } else {
+        // There are unseen questions, but they were skipped earlier – retry logic
+        const unseenQuestions = allRecommended.filter(q => !shownIds.includes(q.id));
+        const fallbackQuestion = unseenQuestions[0]; // Pick the first unseen one
+
+        if (fallbackQuestion) {
+            shownQuestions[currentSubject][recommended_hardness].push(fallbackQuestion.id);
+            currentQuestion = fallbackQuestion;
+            renderQuestion(currentQuestion);
+            return;
+        }
+    }
+
+    // As a last resort
+    questionContainer.innerHTML = `<p class="error">⚠ Unable to find a new question. Try changing difficulty or subject.</p>`;
+    markingSchemeContainer.style.display = "none";
+    return;
+}
+
+
+        shownQuestions[currentSubject][recommended_hardness].push(nextQuestion.id);
+        currentQuestion = nextQuestion;
+
+        renderQuestion(nextQuestion);
+
+    } catch (error) {
+        console.error("Error in calculation:", error);
+        questionContainer.innerHTML = `<p class="error">⚠ Error calculating next question</p>`;
+        markingSchemeContainer.style.display = "none";
+    }
+}
+
+// Subject change listener
+document.getElementById("subject").addEventListener("change", (e) => {
+    loadQuestionsBySubject(e.target.value);
+});
+</script>
+</body>
+</html>
+
+
+
