@@ -132,7 +132,7 @@ async function calculate(event) {
 
         let marks_weight = Math.log2(totalMarks + 1) / 3;
         recommended_hardness *= marks_weight;
-        recommended_hardness = Math.round(Math.max(1, Math.min(5, recommended_hardness)));
+        recommended_hardness = Math.round(Math.max(1, Math.min(4, recommended_hardness)));
 
         demoBox.innerHTML = `<p>Recommended Hardness: <b>${recommended_hardness}</b></p>`;
 
@@ -173,5 +173,6 @@ document.getElementById("subject").addEventListener("change", (e) => {
 </script>
 </body>
 </html>
+
 
 
